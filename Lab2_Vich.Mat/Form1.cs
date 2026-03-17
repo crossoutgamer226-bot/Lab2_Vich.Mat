@@ -140,14 +140,18 @@ namespace Lab2_Vich.Mat
             return result;
         }
 
-        // ---------------- ПОСТРОЕНИЕ ГРАФИКОВ ----------------
+        // ---------------- ПОСТРОЕНИЕ ГРАФИКОВ (исправленный) ----------------
         void Plot()
         {
             ReadTable();
             chart1.Series.Clear();
 
+            // === Точки ===
             var sPoints = chart1.Series.Add("Точки");
             sPoints.ChartType = SeriesChartType.Point;
+            sPoints.MarkerSize = 10;
+            sPoints.Color = System.Drawing.Color.Black;
+
             for (int i = 0; i < X.Count; i++)
                 sPoints.Points.AddXY(X[i], Y[i]);
 
@@ -156,20 +160,34 @@ namespace Lab2_Vich.Mat
             List<double> grid = Enumerable.Range(0, 300)
                 .Select(i => xmin + i * (xmax - xmin) / 299.0).ToList();
 
+            // === Интерполяционный многочлен ===
             var aInterp = InterpolationPolynomial();
             var sInterp = chart1.Series.Add("Интерполяционный многочлен");
             sInterp.ChartType = SeriesChartType.Line;
+            sInterp.Color = System.Drawing.Color.LightGreen;
+            sInterp.BorderWidth = 7;
+
             foreach (double x in grid)
                 sInterp.Points.AddXY(x, PolyEval(aInterp, x));
 
+            // === Лагранж ===
             var sLag = chart1.Series.Add("Лагранж");
             sLag.ChartType = SeriesChartType.Line;
+            sLag.Color = System.Drawing.Color.Yellow;
+            sLag.BorderWidth = 3;
+            sLag.BorderDashStyle = ChartDashStyle.Dash;
+
             foreach (double x in grid)
                 sLag.Points.AddXY(x, Lagrange(x));
 
+            // === Ньютон ===
             var aNewton = NewtonCoeffs();
             var sNewt = chart1.Series.Add("Ньютон");
             sNewt.ChartType = SeriesChartType.Line;
+            sNewt.Color = System.Drawing.Color.Red;
+            sNewt.BorderWidth = 1;
+            sNewt.BorderDashStyle = ChartDashStyle.Dash;
+
             foreach (double x in grid)
                 sNewt.Points.AddXY(x, NewtonEval(x, aNewton));
         }
