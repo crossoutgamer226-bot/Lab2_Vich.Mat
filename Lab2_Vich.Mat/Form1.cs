@@ -17,7 +17,6 @@ namespace Lab2_Vich.Mat
             FillDefaultPoints();
         }
 
-        // ---------------- ЗАПОЛНЕНИЕ ТАБЛИЦЫ (вариант 5) ----------------
         void FillDefaultPoints()
         {
             dataGridView1.Rows.Clear();
@@ -33,7 +32,6 @@ namespace Lab2_Vich.Mat
                 dataGridView1.Rows.Add(X0[i], Y0[i]);
         }
 
-        // ---------------- ЧТЕНИЕ ТАБЛИЦЫ ----------------
         void ReadTable()
         {
             X.Clear();
@@ -49,7 +47,6 @@ namespace Lab2_Vich.Mat
             }
         }
 
-        // ---------------- ИНТЕРПОЛЯЦИОННЫЙ МНОГОЧЛЕН (через твой Гаусс) ----------------
         double[] InterpolationPolynomial()
         {
             int n = X.Count;
@@ -89,7 +86,6 @@ namespace Lab2_Vich.Mat
             return s;
         }
 
-        // ---------------- ЛАГРАНЖ ----------------
         double Lagrange(double x)
         {
             double sum = 0;
@@ -107,7 +103,6 @@ namespace Lab2_Vich.Mat
             return sum;
         }
 
-        // ---------------- НЬЮТОН ----------------
         double[] NewtonCoeffs()
         {
             int n = X.Count;
@@ -140,13 +135,12 @@ namespace Lab2_Vich.Mat
             return result;
         }
 
-        // ---------------- ПОСТРОЕНИЕ ГРАФИКОВ (исправленный) ----------------
         void Plot()
         {
             ReadTable();
             chart1.Series.Clear();
 
-            // === Точки ===
+            
             var sPoints = chart1.Series.Add("Точки");
             sPoints.ChartType = SeriesChartType.Point;
             sPoints.MarkerSize = 10;
@@ -160,7 +154,7 @@ namespace Lab2_Vich.Mat
             List<double> grid = Enumerable.Range(0, 300)
                 .Select(i => xmin + i * (xmax - xmin) / 299.0).ToList();
 
-            // === Интерполяционный многочлен ===
+            
             var aInterp = InterpolationPolynomial();
             var sInterp = chart1.Series.Add("Интерполяционный многочлен");
             sInterp.ChartType = SeriesChartType.Line;
@@ -170,7 +164,7 @@ namespace Lab2_Vich.Mat
             foreach (double x in grid)
                 sInterp.Points.AddXY(x, PolyEval(aInterp, x));
 
-            // === Лагранж ===
+            
             var sLag = chart1.Series.Add("Лагранж");
             sLag.ChartType = SeriesChartType.Line;
             sLag.Color = System.Drawing.Color.Yellow;
@@ -180,7 +174,7 @@ namespace Lab2_Vich.Mat
             foreach (double x in grid)
                 sLag.Points.AddXY(x, Lagrange(x));
 
-            // === Ньютон ===
+
             var aNewton = NewtonCoeffs();
             var sNewt = chart1.Series.Add("Ньютон");
             sNewt.ChartType = SeriesChartType.Line;
@@ -201,7 +195,6 @@ namespace Lab2_Vich.Mat
         private void chart1_Click(object sender, EventArgs e) { }
     }
 
-    // ---------------- ТВОЙ МЕТОД ГАУССА ----------------
     class GaussMethod
     {
         public static float[] SelectByLine(float[,] A, float[] b)
