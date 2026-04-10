@@ -140,7 +140,7 @@ namespace Lab2_Vich.Mat
             ReadTable();
             chart1.Series.Clear();
 
-            
+            // Точки
             var sPoints = chart1.Series.Add("Точки");
             sPoints.ChartType = SeriesChartType.Point;
             sPoints.MarkerSize = 10;
@@ -154,7 +154,7 @@ namespace Lab2_Vich.Mat
             List<double> grid = Enumerable.Range(0, 300)
                 .Select(i => xmin + i * (xmax - xmin) / 299.0).ToList();
 
-            
+            // Интерполяционный многочлен
             var aInterp = InterpolationPolynomial();
             var sInterp = chart1.Series.Add("Интерполяционный многочлен");
             sInterp.ChartType = SeriesChartType.Line;
@@ -164,7 +164,7 @@ namespace Lab2_Vich.Mat
             foreach (double x in grid)
                 sInterp.Points.AddXY(x, PolyEval(aInterp, x));
 
-            
+            // Лагранж
             var sLag = chart1.Series.Add("Лагранж");
             sLag.ChartType = SeriesChartType.Line;
             sLag.Color = System.Drawing.Color.Yellow;
@@ -174,7 +174,7 @@ namespace Lab2_Vich.Mat
             foreach (double x in grid)
                 sLag.Points.AddXY(x, Lagrange(x));
 
-
+            // Ньютон
             var aNewton = NewtonCoeffs();
             var sNewt = chart1.Series.Add("Ньютон");
             sNewt.ChartType = SeriesChartType.Line;
@@ -184,6 +184,20 @@ namespace Lab2_Vich.Mat
 
             foreach (double x in grid)
                 sNewt.Points.AddXY(x, NewtonEval(x, aNewton));
+
+            // ===== СПЛАЙН (добавлено) =====
+            if (X.Count >= 2)
+            {
+                var spline = CubicSpline.Build(X.ToArray(), Y.ToArray());
+
+                var sSpline = chart1.Series.Add("Кубический сплайн");
+                sSpline.ChartType = SeriesChartType.Line;
+                sSpline.Color = System.Drawing.Color.Blue;
+                sSpline.BorderWidth = 3;
+
+                foreach (double x in grid)
+                    sSpline.Points.AddXY(x, spline.Evaluate(x));
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -256,6 +270,152 @@ namespace Lab2_Vich.Mat
                 x[colIndex[i]] = xTemp[i];
 
             return x;
+        }
+    }
+
+    // ===== КУБИЧЕСКИЙ СПЛАЙН ПО МЕТОДИЧКЕ =====
+    public class CubicSpline
+    {
+        private readonly double[] x;  // узлы
+        private readonly double[] a;  // a_i
+        private readonly double[] b;  // b_i
+        private readonly double[] c;  // c_i
+        private readonly double[] d;  // d_i
+
+        private CubicSpline(double[] x, double[] a, double[] b, double[] c, double[] d)
+        {
+            this.x = x;
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.d = d;
+        }
+
+        public static CubicSpline Build(double[] x, double[] f)
+        {
+            if (x == null || f == null)
+                throw new ArgumentNullException("x или f == null");
+
+            if (x.Length != f.Length)
+                throw new ArgumentException("Длины массивов x и f должны совпадать");
+
+            int n = x.Length - 1; // количество отрезков
+
+            if (n < 1)
+                throw new ArgumentException("Нужно минимум два узла");
+
+            for (int i = 1; i < x.Length; i++)
+                if (x[i] <= x[i - 1])
+                    throw new ArgumentException("Узлы x должны быть строго возрастающими");
+
+            // h_i = x_i - x_{i-1}, i = 1..n
+            double[] h = new double[n + 1];
+            for (int i = 1; i <= n; i++)
+                h[i] = x[i] - x[i - 1];
+
+            // c[0] = c_1, ..., c[n] = c_{n+1}
+            double[] c = new double[n + 1];
+            c[0] = 0.0;
+            c[n] = 0.0;
+
+            if (n > 1)
+            {
+                int m = n - 1;
+                double[] A = new double[m];
+                double[] B = new double[m];
+                double[] C = new double[m];
+                double[] D = new double[m];
+
+                for (int i = 2; i <= n; i++)
+                {
+                    int idx = i - 2;
+
+                    double h_im1 = h[i - 1];
+                    double h_i = h[i];
+
+                    A[idx] = h_im1;
+                    B[idx] = 2.0 * (h_im1 + h_i);
+                    C[idx] = h_i;
+
+                    D[idx] = 3.0 * (
+                        (f[i] - f[i - 1]) / h_i
+                        - (f[i - 1] - f[i - 2]) / h_im1
+                    );
+                }
+
+                double[] alpha = new double[m];
+                double[] beta = new double[m];
+
+                alpha[0] = -C[0] / B[0];
+                beta[0] = D[0] / B[0];
+
+                for (int i = 1; i < m; i++)
+                {
+                    double denom = B[i] + A[i] * alpha[i - 1];
+                    alpha[i] = -C[i] / denom;
+                    beta[i] = (D[i] - A[i] * beta[i - 1]) / denom;
+                }
+
+                c[n - 1] = beta[m - 1];
+                for (int i = m - 2; i >= 0; i--)
+                    c[i + 1] = alpha[i] * c[i + 2] + beta[i];
+            }
+
+            double[] a = new double[n + 1];
+            double[] b = new double[n + 1];
+            double[] d = new double[n + 1];
+
+            for (int i = 1; i <= n; i++)
+            {
+                double h_i = h[i];
+
+                a[i] = f[i - 1]; // (3.3)
+
+                double c_i = c[i - 1];
+                double c_ip1 = c[i];
+
+                d[i] = (c_ip1 - c_i) / (3.0 * h_i); // (3.9)
+
+                b[i] = (f[i] - f[i - 1]) / h_i - (c_ip1 + 2.0 * c_i) * h_i / 3.0; // (3.10)
+            }
+
+            double[] aSeg = new double[n];
+            double[] bSeg = new double[n];
+            double[] cSeg = new double[n];
+            double[] dSeg = new double[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                aSeg[i] = a[i + 1];
+                bSeg[i] = b[i + 1];
+                cSeg[i] = c[i];
+                dSeg[i] = d[i + 1];
+            }
+
+            return new CubicSpline(x, aSeg, bSeg, cSeg, dSeg);
+        }
+
+        public double Evaluate(double xQuery)
+        {
+            int n = x.Length - 1;
+
+            int i = 0;
+            if (xQuery <= x[0])
+                i = 0;
+            else if (xQuery >= x[n])
+                i = n - 1;
+            else
+            {
+                for (int k = 0; k < n; k++)
+                    if (xQuery >= x[k] && xQuery <= x[k + 1])
+                    {
+                        i = k;
+                        break;
+                    }
+            }
+
+            double t = xQuery - x[i];
+            return a[i] + b[i] * t + c[i] * t * t + d[i] * t * t * t;
         }
     }
 }
