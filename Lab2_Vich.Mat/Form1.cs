@@ -11,10 +11,13 @@ namespace Lab2_Vich.Mat
         List<double> X = new List<double>();
         List<double> Y = new List<double>();
 
+        ManualSpline manualSpline;
+
         public Form1()
         {
             InitializeComponent();
             FillDefaultPoints();
+            InitManualSpline(); 
         }
 
         void FillDefaultPoints()
@@ -30,6 +33,18 @@ namespace Lab2_Vich.Mat
 
             for (int i = 0; i < X0.Length; i++)
                 dataGridView1.Rows.Add(X0[i], Y0[i]);
+        }
+        void InitManualSpline()
+        {
+            double[] xNodes = { 5, 7, 9, 11, 12 };
+
+            // коэффициенты из СЛАУ
+            double[] a = { 3, -2, -2, 4 };
+            double[] b = { -3, -1, 0, 8 };
+            double[] c = { 0, 0, -0, 4 };
+            double[] d = { 0, -0, 0, -1 };
+
+            manualSpline = new ManualSpline(xNodes, a, b, c, d);
         }
 
         void ReadTable()
@@ -84,6 +99,12 @@ namespace Lab2_Vich.Mat
                 p *= x;
             }
             return s;
+        }
+
+        // произвольный кубический многочлен =====
+        double CubicPoly(double x, double A, double B, double C, double D)
+        {
+            return A + B * x + C * x * x + D * x * x * x;
         }
 
         double Lagrange(double x)
@@ -185,7 +206,7 @@ namespace Lab2_Vich.Mat
             foreach (double x in grid)
                 sNewt.Points.AddXY(x, NewtonEval(x, aNewton));
 
-            // ===== СПЛАЙН (добавлено) =====
+            // ===== СПЛАЙН ПО МЕТОДИЧКЕ =====
             if (X.Count >= 2)
             {
                 var spline = CubicSpline.Build(X.ToArray(), Y.ToArray());
@@ -198,6 +219,37 @@ namespace Lab2_Vich.Mat
                 foreach (double x in grid)
                     sSpline.Points.AddXY(x, spline.Evaluate(x));
             }
+
+            // ===== СПЛАЙН ИЗ СЛАУ (ручной) =====
+            if (manualSpline != null)
+            {
+                var sManual = chart1.Series.Add("Сплайн из СЛАУ");
+                sManual.ChartType = SeriesChartType.Line;
+                sManual.Color = System.Drawing.Color.Orange;
+                sManual.BorderWidth = 3;
+
+                foreach (double x in grid)
+                    sManual.Points.AddXY(x, manualSpline.Evaluate(x));
+            }
+
+            // ===== ПРОИЗВОЛЬНЫЙ КУБИЧЕСКИЙ МНОГОЧЛЕН =====
+            double Acoef, Bcoef, Ccoef, Dcoef;
+
+            bool okA = double.TryParse(txtA.Text, out Acoef);
+            bool okB = double.TryParse(txtB.Text, out Bcoef);
+            bool okC = double.TryParse(txtC.Text, out Ccoef);
+            bool okD = double.TryParse(txtD.Text, out Dcoef);
+
+            if (okA && okB && okC && okD)
+            {
+                var sPoly = chart1.Series.Add("Произвольный многочлен");
+                sPoly.ChartType = SeriesChartType.Line;
+                sPoly.Color = System.Drawing.Color.Purple;
+                sPoly.BorderWidth = 3;
+
+                foreach (double x in grid)
+                    sPoly.Points.AddXY(x, CubicPoly(x, Acoef, Bcoef, Ccoef, Dcoef));
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -207,6 +259,21 @@ namespace Lab2_Vich.Mat
 
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e) { }
         private void chart1_Click(object sender, EventArgs e) { }
+
+        private void label1_Click(object sender, EventArgs e) { }
+        private void label2_Click(object sender, EventArgs e) { }
+        private void label3_Click(object sender, EventArgs e) { }
+        private void label4_Click(object sender, EventArgs e) { }
+
+        private void txtA_TextChanged(object sender, EventArgs e) { }
+        private void txtB_TextChanged(object sender, EventArgs e) { }
+        private void txtC_TextChanged(object sender, EventArgs e) { }
+        private void txtD_TextChanged(object sender, EventArgs e) { }
+
+        private void btnPoly_Click(object sender, EventArgs e)
+        {
+            Plot();
+        }
     }
 
     class GaussMethod
@@ -400,6 +467,48 @@ namespace Lab2_Vich.Mat
             int n = x.Length - 1;
 
             int i = 0;
+            if (xQuery <= x[0])
+                i = 0;
+            else if (xQuery >= x[n])
+                i = n - 1;
+            else
+            {
+                for (int k = 0; k < n; k++)
+                    if (xQuery >= x[k] && xQuery <= x[k + 1])
+                    {
+                        i = k;
+                        break;
+                    }
+            }
+
+            double t = xQuery - x[i];
+            return a[i] + b[i] * t + c[i] * t * t + d[i] * t * t * t;
+        }
+    }
+
+    // =====РУЧНОЙ СПЛАЙН ИЗ СЛАУ =====
+    public class ManualSpline
+    {
+        private readonly double[] x;
+        private readonly double[] a;
+        private readonly double[] b;
+        private readonly double[] c;
+        private readonly double[] d;
+
+        public ManualSpline(double[] x, double[] a, double[] b, double[] c, double[] d)
+        {
+            this.x = x;
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.d = d;
+        }
+
+        public double Evaluate(double xQuery)
+        {
+            int n = x.Length - 1;
+            int i = 0;
+
             if (xQuery <= x[0])
                 i = 0;
             else if (xQuery >= x[n])
